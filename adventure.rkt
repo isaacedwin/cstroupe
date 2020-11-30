@@ -1,6 +1,3 @@
-;; The first three lines of this file were inserted by DrRacket. They record metadata
-;; about the language level of this file in a form that our tools can easily process.
-#reader(lib "htdp-advanced-reader.ss" "lang")((modname adventure) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 (require "adventure-define-struct.rkt")
 (require "macros.rkt")
 (require "utilities.rkt")
@@ -38,6 +35,8 @@
     (begin (printf (description o))
            (newline)
            (void))))
+
+
 
 ;;;
 ;;; CONTAINER
@@ -83,9 +82,9 @@
   
   ;; add!: container thing -> void
   ;; EFFECT: adds the thing to the container.  Does not update the thing's location.
-  (define (add! container object)
+  (define (add! container thing)
     (set-container-contents! container
-                             (cons object
+                             (cons thing
                                    (container-contents container))))
 
   ;; describe-contents: container -> void
@@ -107,6 +106,7 @@
     (prepare-to-remove! (thing-location thing)
                         thing)
     (prepare-to-add! new-container thing)
+    (prepare-to-move! thing new-container)
     (remove! (thing-location thing)
              thing)
     (add! new-container thing)
@@ -142,7 +142,19 @@
 (define-struct (thing container)
   ;; location: container
   ;; What room or other container this thing is presently located in.
-  (location))
+  (location)
+  
+  #:methods
+  (define (examine thing)
+    (print-description thing))
+
+  ;; prepare-to-move!: thing container -> void
+  ;; Called by move when preparing to move thing into
+  ;; container.  Normally, this does nothing, but
+  ;; if you want to prevent the object from being moved,
+  ;; you can throw an exception here.
+  (define (prepare-to-move! container thing)
+    (void)))
 
 ;; initialize-thing!: thing -> void
 ;; EFFECT: adds thing to its initial location
@@ -216,91 +228,95 @@
 ;; the player.  This gets reset by (start-game)
 (define me empty)
 
+;; die
+(define (die! p)
+  (begin (printf "You have died. Starting new game...~%")
+         (start-game)
+         (look)))
+
 ;;;
 ;;; PROP
 ;;; A thing in the game that doesn't serve any purpose other than to be there.
 ;;;
 
 (define-struct (prop thing)
-  ;; noun-to-print: string
-  ;; The user can set the noun to print in the description so it doesn't just say "prop"
-  (noun-to-print)
+  (;; noun-to-print: string
+   ;; The user can set the noun to print in the description so it doesn't just say "prop"
+   noun-to-print
+   ;; examine-text: string
+   ;; Text to print if the player examines this object
+   examine-text
+   )
+  
   #:methods
   (define (noun prop)
-    (prop-noun-to-print prop)))
+    (prop-noun-to-print prop))
+
+  (define (examine prop)
+    (display-line (prop-examine-text prop))))
 
 ;; new-prop: string container -> prop
 ;; Makes a new prop with the specified description.
-(define (new-prop description location)
+(define (new-prop description examine-text location)
   (local [(define words (string->words description))
           (define noun (last words))
           (define adjectives (drop-right words 1))
-          (define prop (make-prop adjectives '() location noun))]
+          (define prop (make-prop adjectives '() location noun examine-text))]
     (begin (initialize-thing! prop)
            prop)))
 
 ;;;
-;;; Magic 8 ball
+;;; ADD YOUR TYPES HERE!
 ;;;
 
-(define-struct (magic-8-ball thing)
-  ;; sayings: (listof string)
-  ;; The collection of strings that it picks from when generating an answer. 
-  (sayings)
+;;;
+;;; POTION
+;;; subtype of thing
+;;;
+
+(define-struct (potion thing)
+  ;; toxicity: boolean
+  (toxicity)
   #:methods
-  ;; change noun to just return "ball"; we put the magic and 8
-  ;; in the adjectives
-  (define (noun ball) "ball")
-  ;; shake: magic-8-ball -> void
-  ;; Randomly print a saying.
-  (define (shake ball)
-    (display-line (random-element (magic-8-ball-sayings ball)))))
+  ;; drink: potion -> void
+  (define (drink potion)
+    (begin (destroy! potion)
+           (if (potion-toxicity potion)
+               (die! me)
+               (printf "You have gained super strength!")))))
 
-;; Tell the help system that shake is a command.
-(define-user-command (shake magic-8-ball)
-  "Tells your future")
+(define (new-potion description toxicity location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define potion (make-potion adjectives '() location toxicity))]
+    (begin (initialize-thing! potion)
+           potion)))
 
-;; random-element: (listof T) -> T
-;; Return a randomly chosen element of list.
-(define (random-element list)
-  (list-ref list
-            (random (length list))))
+;;;
+;;; SCROLL
+;;; subtype of scroll
+;;;
 
-;; new-magic-8-ball: (listof string) container -> magic-8-ball
-;; Makes a magic 8 ball with the specified set of sayings
-(define (new-magic-8-ball sayings location)
-  (local [(define ball
-            (make-magic-8-ball '("magic" "8")
-                               '()
-                               location
-                               sayings))]
-    (begin (initialize-thing! ball)
-           ball)))
+(define-struct (scroll thing)
+  ;; text: contents of scroll
+  (text)
+    #:methods
+  ;; read: print scroll text
+  (define (read scroll)
+    (printf (scroll-text scroll))))
+  
+(define (new-scroll description text location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define scroll (make-scroll adjectives '() location text))]
+    (begin (initialize-thing! scroll)
+           scroll)))
 
-;; standard-magic-8-ball: container -> magic-8-ball
-;; Makes a magic 8 ball with the default sayings
-(define (standard-magic-8-ball location)
-  (new-magic-8-ball '("It is certain."
-                      "It is decidedly so."
-                      "Without a doubt."
-                      "Yes – definitely."
-                      "You may rely on it."
-                      "As I see it, yes."
-                      "Most likely."
-                      "Outlook good."
-                      "Yes."
-                      "Signs point to yes."
-                      "Reply hazy, try again."
-                      "Ask again later."
-                      "Better not tell you now."
-                      "Cannot predict now."
-                      "Concentrate and ask again."
-                      "Don't count on it."
-                      "My reply is no."
-                      "My sources say no."
-                      "Outlook not so good."
-                      "Very doubtful.")
-                    location))
+
+
+
 
 
 ;;;
@@ -323,6 +339,9 @@
 
 (define-user-command (inventory)
   "Prints the things you are carrying with you.")
+
+(define-user-command (examine thing)
+  "Takes a closer look at the thing")
 
 (define (take thing)
   (move! thing me))
@@ -367,32 +386,62 @@
   "Throws an exception if condition is false.")
 
 ;;;
-;;; THE GAME WORLD
+;;; ADD YOUR COMMANDS HERE!
 ;;;
 
+
+;;;
+;;; THE GAME WORLD - FILL ME IN
+;;;
+
+;; start-game: -> void
+;; Recreate the player object and all the rooms and things.
 (define (start-game)
-  (local [(define room1 (new-room "blank empty"))
-          (define room2 (new-room "happy joyful"))]
-    (begin (set! me (new-person "" room1))
-           (join! room1 "happy joyful"
-                  room2 "blank empty")
-           (new-prop "banana" room2)
-           (standard-magic-8-ball room1)
+  ;; Fill this in with the rooms you want
+  (local [(define starting-room (new-room "ominous"))
+          (define room2 (new-room "mysterious"))
+          (define room3.1 (new-room "fancy"))
+          (define room3.2 (new-room "warm inviting"))
+          (define room3.3 (new-room "locked"))
+          (define room4 (new-room "sinister"))]
+    (begin (set! me (new-person "" starting-room))
+           ;; Add join commands to connect your rooms with doors
+           (join! starting-room "mysterious"
+                  room2 "ominous")
+           (join! room2 "fancy"
+                  room3.1 "mysterious")
+           (join! room2 "inviting"
+                   room3.2 "mysterious")
+           (join! room2 "locked"
+                   room3.3 "mysterious")
+           (join! room3.3 "sinsister"
+                   room4 "locked")
+           ;; Add code here to add things to your rooms
+           (new-scroll "urgent scroll"
+                       "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
+                       starting-room)
+           (new-scroll "instructional scroll"
+                       "Ultimate Diamond Sword Recipe~%Ingredients:~%Diamond~%Wooden stick~%Instructions:~%Combine ingredients.~%"
+                       room3.1)
+           (new-scroll "dark scroll"
+                       "Beware, Gorvenal awaits you in the next room! Failure to equip yourself with the correct items will result in a painful death!~%"
+                       room3.3)
+           (new-potion "'don't drink me' potion"
+                       true
+                       room3.2)
+           (new-potion "thanos potion"
+                       false
+                       room3.3)
+           (check-containers!)
            (void))))
 
-(define-walkthrough walkthrough
-  (shake (the ball))
-  (go (the door))
-  (take (the banana))
-  (inventory)
-  (check (have? (the banana)))
-  (go (the door))
-  (drop (the banana))
-  (check (not (have? (the banana))))
-  (look)
-  (inventory)
-  (check (room? (thing-location (the banana))))
-  (shake (the ball)))
+;;;
+;;; PUT YOUR WALKTHROUGHS HERE
+;;;
+
+
+
+
 
 ;;;
 ;;; UTILITIES
@@ -430,6 +479,12 @@
   (eq? (thing-location thing)
        me))
 
+;; have-a?: predicate -> boolean
+;; True if the player as something satisfying predicate in their pocket.
+(define (have-a? predicate)
+  (ormap predicate
+         (container-accessible-contents me)))
+
 ;; find-the: (listof string) -> object
 ;; Returns the object from (accessible-objects)
 ;; whose name contains the specified words.
@@ -457,6 +512,65 @@
       [(0) (error "There's nothing like that here")]
       [(1) (first matches)]
       [else (error "Which one?")])))
+
+;; everything: -> (listof container)
+;; Returns all the objects reachable from the player in the game
+;; world.  So if you create an object that's in a room the player
+;; has no door to, it won't appear in this list.
+(define (everything)
+  (local [(define all-containers '())
+          ; Add container, and then recursively add its contents
+          ; and location and/or destination, as appropriate.
+          (define (walk container)
+            ; Ignore the container if its already in our list
+            (unless (member container all-containers)
+              (begin (set! all-containers
+                           (cons container all-containers))
+                     ; Add its contents
+                     (for-each walk (container-contents container))
+                     ; If it's a door, include its destination
+                     (when (door? container)
+                       (walk (door-destination container)))
+                     ; If  it's a thing, include its location.
+                     (when (thing? container)
+                       (walk (thing-location container))))))]
+    ; Start the recursion with the player
+    (begin (walk me)
+           all-containers)))
+
+;; print-everything: -> void
+;; Prints all the objects in the game.
+(define (print-everything)
+  (begin (display-line "All objects in the game:")
+         (for-each print-description (everything))))
+
+;; every: (container -> boolean) -> (listof container)
+;; A list of all the objects from (everything) that satisfy
+;; the predicate.
+(define (every predicate?)
+  (filter predicate? (everything)))
+
+;; print-every: (container -> boolean) -> void
+;; Prints all the objects satisfying predicate.
+(define (print-every predicate?)
+  (for-each print-description (every predicate?)))
+
+;; check-containers: -> void
+;; Throw an exception if there is an thing whose location and
+;; container disagree with one another.
+(define (check-containers!)
+  (for-each (λ (container)
+              (for-each (λ (thing)
+                          (unless (eq? (thing-location thing)
+                                       container)
+                            (error (description container)
+                                   " has "
+                                   (description thing)
+                                   " in its contents list but "
+                                   (description thing)
+                                   " has a different location.")))
+                        (container-contents container)))
+            (everything)))
 
 ;; is-a?: object word -> boolean
 ;; True if word appears in the description of the object
@@ -514,12 +628,14 @@
 (set-find-the! find-the)
 (set-find-within! find-within)
 (set-restart-game! (λ () (start-game)))
-(current-print (λ (object)
-                 (cond [(void? object)
-                        (void)]
-                       [(object? object)
-                        (print-description object)]
-                       [else (write object)])))
+(define (game-print object)
+  (cond [(void? object)
+         (void)]
+        [(object? object)
+         (print-description object)]
+        [else (write object)]))
+
+(current-print game-print)
    
 ;;;
 ;;; Start it up
@@ -527,4 +643,3 @@
 
 (start-game)
 (look)
-
