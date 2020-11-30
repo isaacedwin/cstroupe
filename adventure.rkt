@@ -207,7 +207,13 @@
 ;;;
 
 (define-struct (person thing)
-  ())
+  ()
+  #:methods
+  ;; die: resets game
+  (define (die! p)
+  (begin (printf "You have died. Starting new game...~%")
+         (start-game)
+         (look))))
 
 ;; initialize-person: person -> void
 ;; EFFECT: do whatever initializations are necessary for persons.
@@ -228,11 +234,7 @@
 ;; the player.  This gets reset by (start-game)
 (define me empty)
 
-;; die
-(define (die! p)
-  (begin (printf "You have died. Starting new game...~%")
-         (start-game)
-         (look)))
+
 
 ;;;
 ;;; PROP
