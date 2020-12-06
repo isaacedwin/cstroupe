@@ -484,7 +484,7 @@
   ;; mine: diamond-ore -> (boolean) diamond
   ;; checks if pickaxe is in player's inventory, and calls mining if true
   (define (mine diamond-ore)
-    (if (have? (the pickaxe))
+    (if (have-a? pickaxe?)
         (mining diamond-ore)
         (printf "I need a pickaxe!"))))
         
@@ -497,7 +497,10 @@
            diamond-ore)))
 
 
-;;;DIAMOND
+;;;
+;;; DIAMOND
+;;; subtype of thing
+;;;
 
 (define-struct (diamonds thing)
   ;; amount: integer
@@ -629,6 +632,7 @@
 ;;; ADD YOUR COMMANDS HERE!
 ;;;
 
+;; (the diamonds),(the stick) -> (the sword)
 ;; create the sword given the right materials
 (define (create-sword diamond woodstick)
   (begin (if (and (have-a? diamonds?)
