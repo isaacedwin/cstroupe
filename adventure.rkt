@@ -192,8 +192,10 @@
     (if (string=? (door-key door) "unnecessary")
         (begin (move! me (door-destination door))
                (look))
-        (printf "The door is locked. Use the unlock function instead for doors that need a key.")))
+        (printf "The door is locked. Unlock the door first!")))
 
+  ;; unlock: door -> void
+  ;; EFFECT: If the key is in the right position, the key field of the door becomes unnecessary (in other words, the door is unlocked)
   (define (unlock door)
     (if (have? (the key))
         (begin
@@ -229,7 +231,8 @@
 (define-struct (person thing)
   ()
   #:methods
-  ;; die: resets game
+  ;; die: person -> void
+  ;; Resets game
   (define (die! p)
     (begin (printf "You have died. Starting new game...~%")
            (start-game)
@@ -260,14 +263,16 @@
 ;;;
 
 (define-struct (wizard person)
-  ;;stamina: health of a wizard, full at 100 and empty at 0
+  ;; stamina: integer
+  ;; health of a wizard, full at 100 and empty at 0
   (stamina)
   #:methods
-  ;; attack:
+  ;; attack: wizard -> string
+  ;; decreases the wizard's stamina by 33 after every attack, once stamina is empty, you win
   (define (attack wizard)
         (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 33))
                (if (< (wizard-stamina wizard) 0)
-                   (printf "You have killed the wizard!")
+                   (printf "You have killed the wizard! You won!")
                    (printf "Wizard is not dead yet, try again!")
                    )
                ))
@@ -326,9 +331,11 @@
 
 (define-struct (potion thing)
   ;; toxicity: boolean
+  ;; toxicity is true when poisonous and false when safe
   (toxicity)
   #:methods
   ;; drink: potion -> void
+  ;; drinks the potion, if it is poisonous you die, if it is safe you gain super strength
   (define (drink potion)
     (begin (destroy! potion)
            (if (potion-toxicity potion)
@@ -349,11 +356,12 @@
 ;;;
 
 (define-struct (scroll thing)
-  ;; text: contents of scroll
+  ;; text: string
+  ;; contents of scroll
   (text)
   #:methods
-  ;; read: print scroll text
-
+  ;; read: scroll -> string
+  ;; prints scroll text
   (define (read scroll)
     (printf (scroll-text scroll))))
   
@@ -368,6 +376,7 @@
 ;;; PICKAXE
 ;;; subtype of thing
 (define-struct (pickaxe thing)())
+
 (define (new-pickaxe description location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -383,16 +392,12 @@
 ;;;
 
 (define-struct (key thing)
-  ;; position: up or down orientation of key
+  ;; position: string ("up" or "down")
+  ;; up or down orientation of key
   (position)
   #:methods
-  ;; unlock: using key to unlock doors
-  (define (unlock key)
-    (if (string=? "down" (key-position key))
-        (printf "The door has been unlocked.")
-        (printf "This door is still locked.")
-        )
-    )
+  ;;turn: key -> key
+  ;;switches orientation of key between up and down 
   (define (turn key)
     (if (string=? "up" (key-position key))
         (begin (destroy! key)
@@ -435,9 +440,12 @@
 ;;;
 
 (define-struct (diamond-ore thing)
+  ;; contents: integer
+  ;; the amount of diamond each diamond-ore holds
   (contents)
   #:methods
-  
+  ;; mining: diamond-ore -> diamond
+  ;; destroys a diamond-ore after 3 times and drops the diamond
   (define (mining diamond-ore)
     (if (= 0 (diamond-ore-contents diamond-ore))
         (begin(destroy! diamond-ore)
@@ -449,7 +457,8 @@
                          (printf "you've gained another diamond, try continue mining!")))
                (set-diamond-ore-contents! diamond-ore (- (diamond-ore-contents diamond-ore) 1))
                )))
-
+  ;; mine: diamond-ore -> (boolean) diamond
+  ;; checks if pickaxe is in player's inventory, and calls mining if true
   (define (mine diamond-ore)
     (if (have? (the pickaxe))
         (mining diamond-ore)
@@ -467,6 +476,8 @@
 ;;;DIAMOND
 
 (define-struct (diamonds thing)
+  ;; amount: integer
+  ;; the number of diamonds you have in your inventory
   (amount))
 
 (define (new-diamonds description amount location)
@@ -476,6 +487,29 @@
           (define diamonds (make-diamonds adjectives '() location amount))]
     (begin (initialize-thing! diamonds)
            diamonds)))
+
+;;;
+;;; PUPPY
+;;; subtype of thing
+;;;
+
+(define-struct (puppy thing)
+  ;; dialogue string
+  ;; puppy's words when you call it
+  (dialogue)
+  #:methods
+  ;; read: puppy -> string
+  ;; prints puppy dialogue
+  (define (call puppy)
+    (printf (puppy-dialogue puppy))))
+  
+(define (new-puppy description dialogue location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define puppy (make-puppy adjectives '() location dialogue))]
+    (begin (initialize-thing! puppy)
+           puppy)))
 
 
 ;;;
@@ -554,14 +588,14 @@
 
 (define (create-sword diamond woodstick)
   (begin (if (and (have? (the diamonds))
-                  (have? (the wooden stick)))
+                  (have? (the stick)))
              (if (= 3 (diamonds-amount (the diamonds)))
-                 (begin (destroy! diamondd)
+                 (begin (destroy! diamond)
                         (destroy! woodstick)
                         (new-prop "ultimate diamond sword" "it's a very powerful sword" (here))
-                        (printf "you've created an ultimate diamond sword, pick it up!"))
-                 (printf "you don't have enough diamond!"))
-             (printf "you don't have the necessary materials!"))))
+                        (printf "You've created an ultimate diamond sword, pick it up!"))
+                 (printf "You don't have enough diamond!"))
+             (printf "You don't have the necessary materials!"))))
                  
 
   
@@ -597,7 +631,7 @@
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
                        starting-room)
            (new-scroll "instructional scroll"
-                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the wooden stick))~%"
+                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the stick))~%"
                        room3.1)
            (new-scroll "dark scroll"
                        "Beware, Gorvenal awaits you in the next room! Failure to equip yourself with the correct items will result in a painful death!~%"
@@ -613,13 +647,16 @@
                     room3.2)
            (new-stick "wood stick" room3.2)
            (new-wizard "dark"
-                       99
+                       100
                        room4)
            (new-pickaxe "pickaxe"
                         room2)
            (new-diamond-ore "first diamond-ore"
                             3
                             room3.1)
+           (new-puppy "cute puppy"
+                       "Woof, woof! Quick, attack the wizard! This is your chance!"
+                       room4)
            (check-containers!)
            (void))))
 
@@ -627,8 +664,33 @@
 ;;; PUT YOUR WALKTHROUGHS HERE
 ;;;
 
-
-
+(define-walkthrough win
+   (read(the scroll))
+  (go(the door))
+  (take(the pickaxe))
+  (go(the fancy door))
+  (read(the scroll))
+  (mine(the diamond-ore))
+  (mine(the diamond-ore))
+  (mine(the diamond-ore))
+  (take(the diamonds))
+  (go(the door))
+  (go(the inviting door))
+  (take(the stick))
+  (take(the key))
+  (turn(the key))
+  (go(the door))
+  (unlock(the locked door))
+  (go(the locked door))
+  (drink(the potion))
+  (create-sword(the diamonds)(the stick))
+  (take(the sword))
+  (go(the sinister door))
+  (attack(the wizard))
+  (attack(the wizard))
+  (attack(the wizard))
+  (attack(the wizard))
+  )
 
 
 ;;;
