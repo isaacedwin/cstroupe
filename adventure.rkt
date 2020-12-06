@@ -387,6 +387,7 @@
 ;;; PICKAXE
 ;;; subtype of thing
 (define-struct (pickaxe thing)())
+
 (define (new-pickaxe description location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -402,10 +403,12 @@
 ;;;
 
 (define-struct (key thing)
-  ;; position: up or down orientation of key
+  ;; position: string ("up" or "down")
+  ;; up or down orientation of key
   (position)
   #:methods
-  ;; turn: turning key to unlock door
+  ;;turn: key -> key
+  ;;switches orientation of key between up and down 
   (define (turn key)
     (if (string=? "up" (key-position key))
         (begin (destroy! key)
@@ -534,6 +537,29 @@
     (begin (initialize-thing! diamonds)
            diamonds)))
 
+;;;
+;;; PUPPY
+;;; subtype of thing
+;;;
+
+(define-struct (puppy thing)
+  ;; dialogue string
+  ;; puppy's words when you call it
+  (dialogue)
+  #:methods
+  ;; read: puppy -> string
+  ;; prints puppy dialogue
+  (define (call puppy)
+    (printf (puppy-dialogue puppy))))
+  
+(define (new-puppy description dialogue location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define puppy (make-puppy adjectives '() location dialogue))]
+    (begin (initialize-thing! puppy)
+           puppy)))
+
 
 ;;;
 ;;; USER COMMANDS
@@ -630,7 +656,6 @@
                         (printf "You've created an ultimate diamond sword, pick it up!"))
                  (printf "You don't have enough diamond!"))
              (printf "You don't have the necessary materials!"))))
-                
 
 ;;;
 ;;; THE GAME WORLD - FILL ME IN
@@ -688,6 +713,9 @@
            (new-diamond-ore "diamond-ore"
                             3
                             room3.1)
+           (new-puppy "cute puppy"
+                       "Woof, woof! Quick, attack the wizard! This is your chance!"
+                       room4)
            (check-containers!)
            (void))))
 
