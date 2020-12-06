@@ -314,6 +314,7 @@
     (begin (initialize-thing! prop)
            prop)))
 
+
 ;;;
 ;;; ADD YOUR TYPES HERE!
 ;;;
@@ -352,6 +353,7 @@
   (text)
   #:methods
   ;; read: print scroll text
+
   (define (read scroll)
     (printf (scroll-text scroll))))
   
@@ -363,6 +365,17 @@
     (begin (initialize-thing! scroll)
            scroll)))
 
+;;; PICKAXE
+;;; subtype of thing
+(define-struct (pickaxe thing)())
+(define (new-pickaxe description location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define pickaxe (make-pickaxe adjectives '() location
+                                                ))]
+    (begin (initialize-thing! pickaxe)
+          pickaxe)))
 
 ;;;
 ;;; KEY
@@ -415,7 +428,54 @@
           (define stick (make-stick adjectives '() location))]
     (begin (initialize-thing! stick)
            stick)))
+           
+;;;
+;;; DIAMOND ORE
+;;; subtype of thing
+;;;
 
+(define-struct (diamond-ore thing)
+  (contents)
+  #:methods
+  
+  (define (mining diamond-ore)
+    (if (= 0 (diamond-ore-contents diamond-ore))
+        (begin(destroy! diamond-ore)
+              (printf "no more diamond left in this ore!"))
+        (begin (if (= 3 (diamond-ore-contents diamond-ore))
+                   (begin(new-diamonds "shiny diamonds" 1 (here))
+                         (printf "pick up the diamonds and keep mining!"))
+                   (begin (set-diamonds-amount! (the diamonds) (+ (diamonds-amount (the diamonds)) 1))
+                         (printf "you've gained another diamond, try continue mining!")))
+               (set-diamond-ore-contents! diamond-ore (- (diamond-ore-contents diamond-ore) 1))
+               )))
+
+  (define (mine diamond-ore)
+    (if (have? (the pickaxe))
+        (mining diamond-ore)
+        (printf "I need a pickaxe!"))))
+
+(define (new-diamond-ore description contents location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define diamond-ore (make-diamond-ore adjectives '() location contents))]
+    (begin (initialize-thing! diamond-ore)
+           diamond-ore)))
+
+
+;;;DIAMOND
+
+(define-struct (diamonds thing)
+  (amount))
+
+(define (new-diamonds description amount location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define diamonds (make-diamonds adjectives '() location amount))]
+    (begin (initialize-thing! diamonds)
+           diamonds)))
 
 
 ;;;
@@ -492,6 +552,19 @@
 ;;; ADD YOUR COMMANDS HERE!
 ;;;
 
+(define (create-sword diamond woodstick)
+  (begin (if (and (have? (the diamonds))
+                  (have? (the wooden stick)))
+             (if (= 3 (diamonds-amount (the diamonds)))
+                 (begin (destroy! diamondd)
+                        (destroy! woodstick)
+                        (new-prop "ultimate diamond sword" "it's a very powerful sword" (here))
+                        (printf "you've created an ultimate diamond sword, pick it up!"))
+                 (printf "you don't have enough diamond!"))
+             (printf "you don't have the necessary materials!"))))
+                 
+
+  
 
 ;;;
 ;;; THE GAME WORLD - FILL ME IN
@@ -524,7 +597,7 @@
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
                        starting-room)
            (new-scroll "instructional scroll"
-                       "Ultimate Diamond Sword Recipe~%Ingredients:~%Diamond~%Wooden stick~%Instructions:~%Combine ingredients.~%"
+                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the wooden stick))~%"
                        room3.1)
            (new-scroll "dark scroll"
                        "Beware, Gorvenal awaits you in the next room! Failure to equip yourself with the correct items will result in a painful death!~%"
@@ -542,6 +615,11 @@
            (new-wizard "dark"
                        99
                        room4)
+           (new-pickaxe "pickaxe"
+                        room2)
+           (new-diamond-ore "first diamond-ore"
+                            3
+                            room3.1)
            (check-containers!)
            (void))))
 
