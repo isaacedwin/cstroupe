@@ -180,40 +180,64 @@
 (define-struct (door thing)
   ;; destination: container
   ;; The place this door leads to
-  (destination)
+  (destination key wiz)
   
   #:methods
   ;; go: door -> void
   ;; EFFECT: Moves the player to the door's location and (look)s around.
   (define (go door)
-    (begin (move! me (door-destination door))
-           (look))))
+    (if (door-wiz door)
+        (if (and (have-a? sword?)
+                 (person-pot me))
+            (begin (move! me (door-destination door))
+                   (look))
+            (begin (move! me (door-destination door))
+                   (look)
+                   (die! me)))
+        (if (string=? (door-key door) "unnecessary")
+            (begin (move! me (door-destination door))
+                   (look))
+            (printf "The door is locked. Use the unlock function instead for doors that need a key."))))
+
+  (define (unlock door)
+    (if (have-a? key?)
+        (begin
+          (if (string=? (key-position (the key)) "down")
+              (begin (printf "Access granted. \n")
+                     (set-door-key! door "unnecessary")
+                     )
+              (printf "Access denied"))
+          )
+        (printf "You need a key.")
+        )))
+
+
 
 ;; join: room string room string
 ;; EFFECT: makes a pair of doors with the specified adjectives
 ;; connecting the specified rooms.
-(define (join! room1 adjectives1 room2 adjectives2)
+(define (join! room1 adjectives1 room2 adjectives2 key wiz)
   (local [(define r1->r2 (make-door (string->words adjectives1)
-                                    '() room1 room2))
+                                    '() room1 room2 key wiz))
           (define r2->r1 (make-door (string->words adjectives2)
-                                    '() room2 room1))]
+                                    '() room2 room1 key wiz))]
     (begin (initialize-thing! r1->r2)
            (initialize-thing! r2->r1)
            (void))))
 
 ;;;
 ;;; PERSON
-;;; A character in the game.  The player character is a person.
+;;; A character in the game.  The player character is a person. Pot is a boolean that becomes t once thanos potion is taken.
 ;;;
 
 (define-struct (person thing)
-  ()
+  (pot)
   #:methods
   ;; die: resets game
   (define (die! p)
-  (begin (printf "You have died. Starting new game...~%")
-         (start-game)
-         (look))))
+    (begin (printf "You have died. Starting new game...~%")
+           (start-game)
+           (look))))
 
 ;; initialize-person: person -> void
 ;; EFFECT: do whatever initializations are necessary for persons.
@@ -222,11 +246,12 @@
 
 ;; new-person: string container -> person
 ;; Makes a new person object and initializes it.
-(define (new-person adjectives location)
+(define (new-person adjectives pot location)
   (local [(define person
             (make-person (string->words adjectives)
                          '()
-                         location))]
+                         location
+                         pot))]
     (begin (initialize-person! person)
            person)))
 
@@ -234,6 +259,34 @@
 ;; the player.  This gets reset by (start-game)
 (define me empty)
 
+;;;
+;;; WIZARD
+;;; subtype of person
+;;;
+
+(define-struct (wizard person)
+  ;;stamina: health of a wizard, full at 100 and empty at 0
+  (stamina)
+  #:methods
+  ;; attack:
+  (define (attack wizard)
+        (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 33))
+               (if (< (wizard-stamina wizard) 0)
+                   (printf "You have killed the wizard!")
+                   (printf "Wizard is not dead yet, try again!")
+                   )
+               ))
+      )
+  
+(define (new-wizard adjectives pot stamina location)
+  (local [(define wizard
+            (make-wizard (string->words adjectives)
+                         '()
+                         location
+                         pot
+                         stamina))]
+    (begin (initialize-person! wizard)
+           wizard)))
 
 
 ;;;
@@ -286,7 +339,8 @@
     (begin (destroy! potion)
            (if (potion-toxicity potion)
                (die! me)
-               (printf "You have gained super strength!")))))
+               (begin (set-person-pot! me true)
+                      (printf "You have gained super strength!"))))))
 
 (define (new-potion description toxicity location)
   (local [(define words (string->words description))
@@ -304,8 +358,9 @@
 (define-struct (scroll thing)
   ;; text: contents of scroll
   (text)
-    #:methods
-  ;; read: printscroll text
+  #:methods
+  ;; read: print scroll text
+
   (define (read scroll)
     (printf (scroll-text scroll))))
   
@@ -320,24 +375,80 @@
 ;;; PICKAXE
 ;;; subtype of thing
 (define-struct (pickaxe thing)())
-
 (define (new-pickaxe description location)
   (local [(define words (string->words description))
           (define noun (last words))
           (define adjectives (drop-right words 1))
           (define pickaxe (make-pickaxe adjectives '() location
-;                                                diamond ore
-;                                                "?"
                                                 ))]
     (begin (initialize-thing! pickaxe)
           pickaxe)))
 
 ;;;
-;;; DIAMOND ORE
+;;; KEY
 ;;; subtype of thing
 ;;;
 
+(define-struct (key thing)
+  ;; position: up or down orientation of key
+  (position)
+  #:methods
+  ;; turn: turning key to unlock door
+  (define (turn key)
+    (if (string=? "up" (key-position key))
+        (begin (destroy! key)
+               (new-key "bronze" "down" (here))
+               (take (the key)))
+        (begin (destroy! key)
+               (new-key "bronze" "up" (here))
+               (take (the key)))
+        )
+    )
+  )
+  
+(define (new-key description position location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define key (make-key adjectives '() location position))]
+    (begin (initialize-thing! key)
+           key)))
 
+
+;;;
+;;; STICK
+;;; subtype of thing
+;;;
+(define-struct (stick thing)
+  ())
+
+(define (new-stick description location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define stick (make-stick adjectives '() location))]
+    (begin (initialize-thing! stick)
+           stick)))
+
+;;;
+;;; SWORD
+;;; subtype of thing
+;;;
+(define-struct (sword thing)
+  ())
+
+(define (new-sword description location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define sword (make-sword adjectives '() location))]
+    (begin (initialize-thing! sword)
+           sword)))
+           
+;;;
+;;; DIAMOND ORE
+;;; subtype of thing
+;;;
 
 (define-struct (diamond-ore thing)
   (contents)
@@ -351,7 +462,7 @@
                    (begin(new-diamonds "shiny diamonds" 1 (here))
                          (printf "pick up the diamonds and keep mining!"))
                    (begin (set-diamonds-amount! (the diamonds) (+ (diamonds-amount (the diamonds)) 1))
-                         (printf "you've gained another diamond, try continue mining!")))
+                         (printf "you've gained more diamonds, try continue mining!")))
                (set-diamond-ore-contents! diamond-ore (- (diamond-ore-contents diamond-ore) 1))
                )))
 
@@ -381,7 +492,6 @@
           (define diamonds (make-diamonds adjectives '() location amount))]
     (begin (initialize-thing! diamonds)
            diamonds)))
-
 
 
 ;;;
@@ -440,7 +550,11 @@
   "Displays this help information")
 
 (define-user-command (go door)
-  "Go through the door to its destination")
+  "Go through the door to its destination if the door does not require a key")
+
+
+(define-user-command (unlock door)
+  "Unlock a locked door and go through that door if the door requires a key")
 
 (define (check condition)
   (if condition
@@ -455,18 +569,17 @@
 ;;;
 
 (define (create-sword diamond woodstick)
-  (begin (if (and (have? (the diamonds))
-                  (have? (the wooden stick)))
+  (begin (if (and (have-a? diamonds)
+                  (have-a? stick))
              (if (= 3 (diamonds-amount (the diamonds)))
-                 (begin (destroy! diamondd)
+                 (begin (destroy! diamond)
                         (destroy! woodstick)
-                        (new-prop "ultimate diamond sword" "it's a very powerful sword" (here))
+                        (new-sword "ultimate diamond sword" (here))
                         (printf "you've created an ultimate diamond sword, pick it up!"))
                  (printf "you don't have enough diamond!"))
              (printf "you don't have the necessary materials!"))))
                  
 
-  
 
 ;;;
 ;;; THE GAME WORLD - FILL ME IN
@@ -482,24 +595,24 @@
           (define room3.2 (new-room "warm inviting"))
           (define room3.3 (new-room "locked"))
           (define room4 (new-room "sinister"))]
-    (begin (set! me (new-person "" starting-room))
+    (begin (set! me (new-person "" false starting-room))
            ;; Add join commands to connect your rooms with doors
            (join! starting-room "mysterious"
-                  room2 "ominous")
+                  room2 "ominous" "unnecessary" false)
            (join! room2 "fancy"
-                  room3.1 "mysterious")
+                  room3.1 "mysterious" "unnecessary" false)
            (join! room2 "inviting"
-                   room3.2 "mysterious")
+                  room3.2 "mysterious" "unnecessary" false)
            (join! room2 "locked"
-                   room3.3 "mysterious")
+                  room3.3 "mysterious" "necessary" false)
            (join! room3.3 "sinister"
-                   room4 "locked")
+                  room4 "locked" "unnecessary" true)
            ;; Add code here to add things to your rooms
            (new-scroll "urgent scroll"
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
                        starting-room)
            (new-scroll "instructional scroll"
-                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the wooden stick))~%"
+                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Sets of Diamonds~%Wooden Stick~%Instructions:~%(create-sword (the diamonds) (the stick))~%"
                        room3.1)
            (new-scroll "dark scroll"
                        "Beware, Gorvenal awaits you in the next room! Failure to equip yourself with the correct items will result in a painful death!~%"
@@ -510,14 +623,19 @@
            (new-potion "thanos potion"
                        false
                        room3.3)
+           (new-key "bronze key"
+                    "up"
+                    room3.2)
+           (new-stick "wood stick" room3.3)
+           (new-wizard "dark"
+                       true
+                       99
+                       room4)
            (new-pickaxe "pickaxe"
-                        starting-room)
-           (new-prop "wooden stick"
-                     "."
-                     starting-room)
-           (new-diamond-ore "first diamond-ore"
+                        room2)
+           (new-diamond-ore "diamond-ore"
                             3
-                            starting-room)
+                            room3.1)
            (check-containers!)
            (void))))
 
