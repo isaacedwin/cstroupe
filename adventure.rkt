@@ -183,23 +183,41 @@
 (define-struct (door thing)
   ;; destination: container
   ;; The place this door leads to
-  (destination)
+  (destination key)
   
   #:methods
   ;; go: door -> void
   ;; EFFECT: Moves the player to the door's location and (look)s around.
   (define (go door)
-    (begin (move! me (door-destination door))
-           (look))))
+    (if (string=? (door-key door) "unnecessary")
+        (begin (move! me (door-destination door))
+               (look))
+        (printf "The door is locked. Use the unlock function instead for doors that need a key.")))
+
+  (define (unlock door)
+    (if (have? (the key))
+        (begin
+          (if (string=? (key-position (the key)) "down")
+              (begin (printf "Access granted. \n")
+                     (move! me (door-destination door))
+               (look)
+                     )
+              (printf "Access denied"))
+          )
+        (printf "You need a key.")
+        ))
+  )
+
+
 
 ;; join: room string room string
 ;; EFFECT: makes a pair of doors with the specified adjectives
 ;; connecting the specified rooms.
-(define (join! room1 adjectives1 room2 adjectives2)
+(define (join! room1 adjectives1 room2 adjectives2 key)
   (local [(define r1->r2 (make-door (string->words adjectives1)
-                                    '() room1 room2))
+                                    '() room1 room2 key))
           (define r2->r1 (make-door (string->words adjectives2)
-                                    '() room2 room1))]
+                                    '() room2 room1 key))]
     (begin (initialize-thing! r1->r2)
            (initialize-thing! r2->r1)
            (void))))
@@ -250,17 +268,17 @@
   ;; attack:
   (define (attack wizard)
     (begin
-    (local [(define wizstam
-              (- (wizard-stamina wizard) (* (wizard-trials wizard)  33))
-              )]
-    (begin (set! wizstam (- wizstam 33))
-           (if (< wizstam 0)
-               (printf "You have killed the wizard!")
-               (display-line wizstam)
-               )
-           ))
+      (local [(define wizstam
+                (- (wizard-stamina wizard) (* (wizard-trials wizard)  33))
+                )]
+        (begin (set! wizstam (- wizstam 33))
+               (if (< wizstam 0)
+                   (printf "You have killed the wizard!")
+                   (printf "Wizard is not dead yet, try again!")
+                   )
+               ))
+      )
     )
-  )
   )
   
 (define (new-wizard adjectives stamina trials location)
@@ -371,11 +389,13 @@
         )
     )
   (define (turn key)
-   (if (string=? "up" (key-position key))
-       (begin (destroy! key)
-       (new-key "bronze" "down" (here)))
-         (begin (destroy! key)
-       (new-key "bronze" "up" (here)))
+    (if (string=? "up" (key-position key))
+        (begin (destroy! key)
+               (new-key "bronze" "down" (here))
+               (take (the key)))
+        (begin (destroy! key)
+               (new-key "bronze" "up" (here))
+               (take (the key)))
         )
     )
   )
@@ -494,15 +514,15 @@
     (begin (set! me (new-person "" starting-room))
            ;; Add join commands to connect your rooms with doors
            (join! starting-room "mysterious"
-                  room2 "ominous")
+                  room2 "ominous" "unnecessary")
            (join! room2 "fancy"
-                  room3.1 "mysterious")
+                  room3.1 "mysterious" "unnecessary")
            (join! room2 "inviting"
-                  room3.2 "mysterious")
+                  room3.2 "mysterious" "unnecessary")
            (join! room2 "locked"
-                  room3.3 "mysterious")
+                  room3.3 "mysterious" "necessary")
            (join! room3.3 "sinister"
-                  room4 "locked")
+                  room4 "locked" "unnecessary")
            ;; Add code here to add things to your rooms
            (new-scroll "urgent scroll"
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
@@ -520,8 +540,8 @@
                        false
                        room3.3)
            (new-key "bronze key"
-                  "up"
-                room3.2)
+                    "up"
+                    room3.2)
            (new-stick "wood stick" room3.2)
            (new-wizard "dark"
                        99
