@@ -1,3 +1,6 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-advanced-reader.ss" "lang")((modname |adventure copy|) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 (require "adventure-define-struct.rkt")
 (require "macros.rkt")
 (require "utilities.rkt")
@@ -316,10 +319,64 @@
     (begin (initialize-thing! scroll)
            scroll)))
 
+;;;DIAMOND
+(define-struct (diamond thing)
+  (amount))
 
+(define (new-diamond description location amount)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define diamond (make-diamond adjectives '() location
+;                                        diamond
+;                                        "wow so shiny"
+                                        amount
+                                        ))]
+    (begin (initialize-thing! diamond)
+           diamond)))
 
+;;;PICKAXE
+(define-struct (pickaxe thing)
+  ())
 
+(define (new-pickaxe description location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define pickaxe (make-pickaxe adjectives '() location
+;                                                diamond ore
+;                                                "?"
+                                                ))]
+    (begin (initialize-thing! pickaxe)
+          pickaxe)))
 
+;;;DIAMOND ORE
+(define-struct (diamond-ore thing)
+  (contents)
+  #:methods
+    (define (mining diamond-ore)
+             (if (= diamond-ore-contents 0)
+                 (void)
+                 (begin(new-diamond "ingot of diamond" (here))
+                       (set! diamond-ore-contents (- diamond-ore-contents 1))
+                       (mining diamond-ore))))
+  (define (mine diamond-ore)
+    (if (have? (the pickaxe))
+        (begin (destroy! diamond-ore)
+               (mining diamond-ore))
+        (error ("Need a Pickaxe!")))))
+
+(define (new-diamond-ore description location contents)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define diamond-ore (make-diamond-ore adjectives '() location
+;                                                diamond ore
+;                                                "?"
+                                                contents
+                                                ))]
+    (begin (initialize-thing! diamond-ore)
+           diamond-ore)))
 
 ;;;
 ;;; USER COMMANDS
@@ -389,6 +446,20 @@
 
 ;;;
 ;;; ADD YOUR COMMANDS HERE!
+
+;;Empty-inventory: drops everything in the inventory
+(define (empty-inventory my-inventory)
+  (if (empty? (my-inventory))
+      (printf "Your inventory is empty.~%")
+      (for-each drop (my-inventory))))
+
+(define-user-command (empty-inventory my-inventory)
+  "Emptys the inventory of the player")
+
+;(define (combine wood-stick diamond)
+;  (begin(destroy! wood-stick)
+;        (destroy! diamond)
+;        (new-sword "shiny dangerous" 
 ;;;
 
 
@@ -434,6 +505,12 @@
            (new-potion "thanos potion"
                        false
                        room3.3)
+           (new-diamond-ore "weird looking diamond-ore"
+                            room3.1
+                            2)
+           (new-pickaxe "old stone pickaxe"
+                        room2)
+           
            (check-containers!)
            (void))))
 
