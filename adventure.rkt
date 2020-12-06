@@ -199,8 +199,7 @@
         (begin
           (if (string=? (key-position (the key)) "down")
               (begin (printf "Access granted. \n")
-                     (move! me (door-destination door))
-               (look)
+                     (set-door-key! door "unnecessary")
                      )
               (printf "Access denied"))
           )
@@ -262,31 +261,24 @@
 
 (define-struct (wizard person)
   ;;stamina: health of a wizard, full at 100 and empty at 0
-  (stamina
-   trials)
+  (stamina)
   #:methods
   ;; attack:
   (define (attack wizard)
-    (begin
-      (local [(define wizstam
-                (- (wizard-stamina wizard) (* (wizard-trials wizard)  33))
-                )]
-        (begin (set! wizstam (- wizstam 33))
-               (if (< wizstam 0)
+        (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 33))
+               (if (< (wizard-stamina wizard) 0)
                    (printf "You have killed the wizard!")
                    (printf "Wizard is not dead yet, try again!")
                    )
                ))
       )
-    )
-  )
   
-(define (new-wizard adjectives stamina trials location)
+(define (new-wizard adjectives stamina location)
   (local [(define wizard
             (make-wizard (string->words adjectives)
                          '()
                          location
-                         stamina trials))]
+                         stamina))]
     (begin (initialize-person! wizard)
            wizard)))
 
@@ -482,7 +474,11 @@
   "Displays this help information")
 
 (define-user-command (go door)
-  "Go through the door to its destination")
+  "Go through the door to its destination if the door does not require a key")
+
+
+(define-user-command (unlock door)
+  "Unlock a locked door and go through that door if the door requires a key")
 
 (define (check condition)
   (if condition
@@ -545,7 +541,6 @@
            (new-stick "wood stick" room3.2)
            (new-wizard "dark"
                        99
-                       0
                        room4)
            (check-containers!)
            (void))))
