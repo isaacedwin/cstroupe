@@ -183,21 +183,29 @@
 (define-struct (door thing)
   ;; destination: container
   ;; The place this door leads to
-  (destination key)
+  (destination key wiz)
   
   #:methods
   ;; go: door -> void
   ;; EFFECT: Moves the player to the door's location and (look)s around.
   (define (go door)
-    (if (string=? (door-key door) "unnecessary")
-        (begin (move! me (door-destination door))
-               (look))
-        (printf "The door is locked. Unlock the door first!")))
+    (if (door-wiz door)
+        (if (and (have-a? sword?)
+                 (person-pot me))
+            (begin (move! me (door-destination door))
+                   (look))
+            (begin (move! me (door-destination door))
+                   (look)
+                   (die! me)))
+        (if (string=? (door-key door) "unnecessary")
+            (begin (move! me (door-destination door))
+                   (look))
+            (printf "The door is locked. Unlock the door first!"))))
 
   ;; unlock: door -> void
   ;; EFFECT: If the key is in the right position, the key field of the door becomes unnecessary (in other words, the door is unlocked)
   (define (unlock door)
-    (if (have? (the key))
+    (if (have-a? key?)
         (begin
           (if (string=? (key-position (the key)) "down")
               (begin (printf "Access granted. \n")
@@ -206,30 +214,29 @@
               (printf "Access denied"))
           )
         (printf "You need a key.")
-        ))
-  )
-
+        )))
 
 
 ;; join: room string room string
 ;; EFFECT: makes a pair of doors with the specified adjectives
 ;; connecting the specified rooms.
-(define (join! room1 adjectives1 room2 adjectives2 key)
+
+(define (join! room1 adjectives1 room2 adjectives2 key wiz)
   (local [(define r1->r2 (make-door (string->words adjectives1)
-                                    '() room1 room2 key))
+                                    '() room1 room2 key wiz))
           (define r2->r1 (make-door (string->words adjectives2)
-                                    '() room2 room1 key))]
+                                    '() room2 room1 key wiz))]
     (begin (initialize-thing! r1->r2)
            (initialize-thing! r2->r1)
            (void))))
 
 ;;;
 ;;; PERSON
-;;; A character in the game.  The player character is a person.
+;;; A character in the game.  The player character is a person. Pot is a boolean that becomes t once thanos potion is taken.
 ;;;
 
 (define-struct (person thing)
-  ()
+  (pot)
   #:methods
   ;; die: person -> void
   ;; Resets game
@@ -245,11 +252,12 @@
 
 ;; new-person: string container -> person
 ;; Makes a new person object and initializes it.
-(define (new-person adjectives location)
+(define (new-person adjectives pot location)
   (local [(define person
             (make-person (string->words adjectives)
                          '()
-                         location))]
+                         location
+                         pot))]
     (begin (initialize-person! person)
            person)))
 
@@ -278,11 +286,12 @@
                ))
       )
   
-(define (new-wizard adjectives stamina location)
+(define (new-wizard adjectives pot stamina location)
   (local [(define wizard
             (make-wizard (string->words adjectives)
                          '()
                          location
+                         pot
                          stamina))]
     (begin (initialize-person! wizard)
            wizard)))
@@ -340,8 +349,9 @@
     (begin (destroy! potion)
            (if (potion-toxicity potion)
                (die! me)
-               (printf "You have gained super strength!")))))
-(user-defined-command(drink potion)"Consumes potion")
+               (begin (set-person-pot! me true)
+                      (printf "You have gained super strength!"))))))
+                      
 (define (new-potion description toxicity location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -377,7 +387,6 @@
 ;;; PICKAXE
 ;;; subtype of thing
 (define-struct (pickaxe thing)())
-
 (define (new-pickaxe description location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -393,12 +402,10 @@
 ;;;
 
 (define-struct (key thing)
-  ;; position: string ("up" or "down")
-  ;; up or down orientation of key
+  ;; position: up or down orientation of key
   (position)
   #:methods
-  ;;turn: key -> key
-  ;;switches orientation of key between up and down 
+  ;; turn: turning key to unlock door
   (define (turn key)
     (if (string=? "up" (key-position key))
         (begin (destroy! key)
@@ -410,8 +417,6 @@
         )
     )
   )
-(define-user-command(turn key)
-  "Changes the orientation of the key to unlock doors")
   
 (define (new-key description position location)
   (local [(define words (string->words description))
@@ -421,6 +426,44 @@
     (begin (initialize-thing! key)
            key)))
 
+
+;;;
+;;; STICK
+;;; subtype of thing
+;;;
+(define-struct (stick thing)
+  ())
+(define (new-stick description location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define stick (make-stick adjectives '() location))]
+    (begin (initialize-thing! stick)
+           stick)))
+
+
+  
+
+
+;;;
+;;; SWORD
+;;; subtype of thing
+;;;
+(define-struct (sword thing)
+  ())
+
+(define (new-sword description location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define sword (make-sword adjectives '() location))]
+    (begin (initialize-thing! sword)
+           sword)))
+           
+;;;
+;;; DIAMOND ORE
+;;; subtype of thing
+;;;
 
 ;;;
 ;;; STICK
@@ -457,7 +500,7 @@
                    (begin(new-diamonds "shiny diamonds" 1 (here))
                          (printf "pick up the diamonds and keep mining!"))
                    (begin (set-diamonds-amount! (the diamonds) (+ (diamonds-amount (the diamonds)) 1))
-                         (printf "you've gained another diamond, try continue mining!")))
+                         (printf "you've gained more diamonds, try continue mining!")))
                (set-diamond-ore-contents! diamond-ore (- (diamond-ore-contents diamond-ore) 1))
                )))
   ;; mine: diamond-ore -> (boolean) diamond
@@ -466,8 +509,7 @@
     (if (have? (the pickaxe))
         (mining diamond-ore)
         (printf "I need a pickaxe!"))))
-(define-user-command (mine diamond-ore) "Breaks a diamond-ore and produces 1 diamond")
-
+        
 (define (new-diamond-ore description contents location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -554,6 +596,13 @@
 
 (define-user-command (unlock door)
   "Unlock a locked door and go through that door if the door requires a key")
+  
+ (define-user-command (drink potion)"Consumes potion")
+ 
+ (define-user-command(turn key)
+  "Changes the orientation of the key to unlock doors")
+  
+  (define-user-command (mine diamond-ore) "Breaks a diamond-ore and produces 1 diamond")
 
 (define (check condition)
   (if condition
@@ -562,24 +611,27 @@
 
 (define-user-command (check condition)
   "Throws an exception if condition is false.")
+  
+(define-user-command (create-sword diamond woodstick)
+  "Creates a new sword if given the right materials")
+
 
 ;;;
 ;;; ADD YOUR COMMANDS HERE!
 ;;;
 
 (define (create-sword diamond woodstick)
-  (begin (if (and (have? (the diamonds))
-                  (have? (the stick)))
+  (begin (if (and (have-a? diamonds)
+                  (have-a? stick))
              (if (= 3 (diamonds-amount (the diamonds)))
                  (begin (destroy! diamond)
                         (destroy! woodstick)
-                        (new-prop "ultimate diamond sword" "it's a very powerful sword" (here))
+                        (new-sword "ultimate diamond sword" (here))
                         (printf "You've created an ultimate diamond sword, pick it up!"))
                  (printf "You don't have enough diamond!"))
              (printf "You don't have the necessary materials!"))))
-             
-(define-user-command (create-sword diamond woodstick)
-  "Creates a new sword if given the rigt amount of diamonds")
+                
+
 ;;;
 ;;; THE GAME WORLD - FILL ME IN
 ;;;
@@ -594,24 +646,25 @@
           (define room3.2 (new-room "warm inviting"))
           (define room3.3 (new-room "locked"))
           (define room4 (new-room "sinister"))]
-    (begin (set! me (new-person "" starting-room))
+    (begin (set! me (new-person "" false starting-room))
            ;; Add join commands to connect your rooms with doors
            (join! starting-room "mysterious"
-                  room2 "ominous" "unnecessary")
+                  room2 "ominous" "unnecessary" false)
            (join! room2 "fancy"
-                  room3.1 "mysterious" "unnecessary")
+                  room3.1 "mysterious" "unnecessary" false)
            (join! room2 "inviting"
-                  room3.2 "mysterious" "unnecessary")
+                  room3.2 "mysterious" "unnecessary" false)
            (join! room2 "locked"
-                  room3.3 "mysterious" "necessary")
+                  room3.3 "mysterious" "necessary" false)
            (join! room3.3 "sinister"
-                  room4 "locked" "unnecessary")
+                  room4 "locked" "unnecessary" true)
+                  
            ;; Add code here to add things to your rooms
            (new-scroll "urgent scroll"
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
                        starting-room)
            (new-scroll "instructional scroll"
-                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the stick))~%"
+                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Sets of Diamonds~%Wooden Stick~%Instructions:~%(create-sword (the diamonds) (the stick))~%"
                        room3.1)
            (new-scroll "dark scroll"
                        "Beware, Gorvenal awaits you in the next room! Failure to equip yourself with the correct items will result in a painful death!~%"
@@ -627,11 +680,12 @@
                     room3.2)
            (new-stick "wood stick" room3.2)
            (new-wizard "dark"
+                       true
                        100
                        room4)
            (new-pickaxe "pickaxe"
                         room2)
-           (new-diamond-ore "first diamond-ore"
+           (new-diamond-ore "diamond-ore"
                             3
                             room3.1)
            (check-containers!)
