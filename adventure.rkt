@@ -180,7 +180,15 @@
 (define-struct (door thing)
   ;; destination: container
   ;; The place this door leads to
-  (destination key wiz)
+  (destination
+
+  ;; key: string
+  ;; has the value "necessary" if the door requires a key and "unnecessary" if the door does not require a key
+   key
+
+  ;; wiz: boolean
+  ;; is true if the room leads to the wizard
+   wiz)
   
   #:methods
   ;; go: door -> void
@@ -216,7 +224,7 @@
         )))
 
 
-;; join: room string room string
+;; join: room string room string string wiz
 ;; EFFECT: makes a pair of doors with the specified adjectives
 ;; connecting the specified rooms.
 
@@ -231,10 +239,12 @@
 
 ;;;
 ;;; PERSON
-;;; A character in the game.  The player character is a person. Pot is a boolean that becomes t once thanos potion is taken.
+;;; A character in the game.  The player character is a person.
 ;;;
 
 (define-struct (person thing)
+  ;; pot: boolean
+  ;; Deteremines whether the potion has drunk the thanos potion
   (pot)
   #:methods
   ;; die: person -> void
