@@ -341,7 +341,7 @@
            (if (potion-toxicity potion)
                (die! me)
                (printf "You have gained super strength!")))))
-
+(user-defined-command(drink potion)"Consumes potion")
 (define (new-potion description toxicity location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -364,7 +364,8 @@
   ;; prints scroll text
   (define (read scroll)
     (printf (scroll-text scroll))))
-  
+
+(define-user-command(read scroll) "Prints the text on the scroll")
 (define (new-scroll description text location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -409,6 +410,8 @@
         )
     )
   )
+(define-user-command(turn key)
+  "Changes the orientation of the key to unlock doors")
   
 (define (new-key description position location)
   (local [(define words (string->words description))
@@ -463,6 +466,7 @@
     (if (have? (the pickaxe))
         (mining diamond-ore)
         (printf "I need a pickaxe!"))))
+(define-user-command (mine diamond-ore) "Breaks a diamond-ore and produces 1 diamond")
 
 (define (new-diamond-ore description contents location)
   (local [(define words (string->words description))
@@ -573,10 +577,9 @@
                         (printf "You've created an ultimate diamond sword, pick it up!"))
                  (printf "You don't have enough diamond!"))
              (printf "You don't have the necessary materials!"))))
-                 
-
-  
-
+             
+(define-user-command (create-sword diamond woodstick)
+  "Creates a new sword if given the rigt amount of diamonds")
 ;;;
 ;;; THE GAME WORLD - FILL ME IN
 ;;;
