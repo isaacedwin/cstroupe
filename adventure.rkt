@@ -1,6 +1,3 @@
-;; The first three lines of this file were inserted by DrRacket. They record metadata
-;; about the language level of this file in a form that our tools can easily process.
-#reader(lib "htdp-advanced-reader.ss" "lang")((modname adventure) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 (require "adventure-define-struct.rkt")
 (require "macros.rkt")
 (require "utilities.rkt")
@@ -189,6 +186,7 @@
   ;; go: door -> void
   ;; EFFECT: Moves the player to the door's location and (look)s around.
   (define (go door)
+    ;; when entering room 4, the player should have drank the potion and created the sword 
     (if (door-wiz door)
         (if (and (have-a? sword?)
                  (person-pot me))
@@ -197,6 +195,7 @@
             (begin (move! me (door-destination door))
                    (look)
                    (die! me)))
+        ;; room 3.3 should be locked
         (if (string=? (door-key door) "unnecessary")
             (begin (move! me (door-destination door))
                    (look))
@@ -265,36 +264,6 @@
 ;; the player.  This gets reset by (start-game)
 (define me empty)
 
-;;;
-;;; WIZARD
-;;; subtype of person
-;;;
-
-(define-struct (wizard person)
-  ;; stamina: integer
-  ;; health of a wizard, full at 100 and empty at 0
-  (stamina)
-  #:methods
-  ;; attack: wizard -> string
-  ;; decreases the wizard's stamina by 33 after every attack, once stamina is empty, you win
-  (define (attack wizard)
-        (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 34))
-               (if (< (wizard-stamina wizard) 0)
-                   (printf "You have killed the wizard! You won!")
-                   (printf "Wizard is not dead yet, try again!")
-                   )
-               ))
-      )
-  
-(define (new-wizard adjectives pot stamina location)
-  (local [(define wizard
-            (make-wizard (string->words adjectives)
-                         '()
-                         location
-                         pot
-                         stamina))]
-    (begin (initialize-person! wizard)
-           wizard)))
 
 
 ;;;
@@ -308,8 +277,7 @@
    noun-to-print
    ;; examine-text: string
    ;; Text to print if the player examines this object
-   examine-text
-   )
+   examine-text)
   
   #:methods
   (define (noun prop)
@@ -334,6 +302,34 @@
 ;;;
 
 ;;;
+;;; WIZARD
+;;; subtype of person
+;;;
+
+(define-struct (wizard person)
+  ;; stamina: integer
+  ;; health of a wizard, full at 100 and empty at 0
+  (stamina)
+  #:methods
+  ;; attack: wizard -> string
+  ;; decreases the wizard's stamina by 33 after every attack, once stamina is empty, you win
+  (define (attack wizard)
+        (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 34))
+               (if (< (wizard-stamina wizard) 0)
+                   (printf "You have killed the wizard! You won!")
+                   (printf "Wizard is not dead yet, try again!")))))
+
+(define (new-wizard adjectives pot stamina location)
+  (local [(define wizard
+            (make-wizard (string->words adjectives)
+                         '()
+                         location
+                         pot
+                         stamina))]
+    (begin (initialize-person! wizard)
+           wizard)))
+
+;;;
 ;;; POTION
 ;;; subtype of thing
 ;;;
@@ -344,7 +340,7 @@
   (toxicity)
   #:methods
   ;; drink: potion -> void
-  ;; drinks the potion, if it is poisonous you die, if it is safe you gain super strength
+  ;; drinks the potion, if it is poisonous you die, if it is safe you gain super strength, and pot is set to true
   (define (drink potion)
     (begin (destroy! potion)
            (if (potion-toxicity potion)
@@ -375,7 +371,6 @@
   (define (read scroll)
     (printf (scroll-text scroll))))
 
-(define-user-command(read scroll) "Prints the text on the scroll")
 (define (new-scroll description text location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -416,10 +411,7 @@
                (take (the key)))
         (begin (destroy! key)
                (new-key "bronze" "up" (here))
-               (take (the key)))
-        )
-    )
-  )
+               (take (the key))))))
   
 (define (new-key description position location)
   (local [(define words (string->words description))
@@ -434,6 +426,7 @@
 ;;; STICK
 ;;; subtype of thing
 ;;;
+
 (define-struct (stick thing)
   ())
 (define (new-stick description location)
@@ -445,13 +438,12 @@
            stick)))
 
 
-  
-
 
 ;;;
 ;;; SWORD
 ;;; subtype of thing
 ;;;
+
 (define-struct (sword thing)
   ())
 
@@ -474,8 +466,9 @@
   ;; the amount of diamond each diamond-ore holds
   (contents)
   #:methods
+  
   ;; mining: diamond-ore -> diamond
-  ;; destroys a diamond-ore after 3 times and drops the diamond
+  ;; destroys a diamond-ore after 3 times and drops the diamonds each time the ore is mined
   (define (mining diamond-ore)
     (if (= 0 (diamond-ore-contents diamond-ore))
         (begin(destroy! diamond-ore)
@@ -487,6 +480,7 @@
                          (printf "you've gained more diamonds, try continue mining!")))
                (set-diamond-ore-contents! diamond-ore (- (diamond-ore-contents diamond-ore) 1))
                )))
+  
   ;; mine: diamond-ore -> (boolean) diamond
   ;; checks if pickaxe is in player's inventory, and calls mining if true
   (define (mine diamond-ore)
@@ -576,8 +570,7 @@
   (move! thing (here)))
 
 (define-user-command (drop thing)
-  "Removes thing from your inventory and places it in the room
-")
+  "Removes thing from your inventory and places it in the room")
 
 (define (put thing container)
   (move! thing container))
@@ -604,12 +597,12 @@
 (define-user-command (unlock door)
   "Unlock a locked door and go through that door if the door requires a key")
   
- (define-user-command (drink potion)"Consumes potion")
+(define-user-command (drink potion)"Consumes potion")
  
- (define-user-command(turn key)
+(define-user-command (turn key)
   "Changes the orientation of the key to unlock doors")
   
-  (define-user-command (mine diamond-ore) "Breaks a diamond-ore and produces 1 diamond")
+(define-user-command (mine diamond-ore) "Breaks a diamond-ore and produces 1 diamond")
 
 (define (check condition)
   (if condition
@@ -619,14 +612,24 @@
 (define-user-command (check condition)
   "Throws an exception if condition is false.")
   
-(define-user-command (create-sword diamond woodstick)
+(define-user-command (create-sword diamonds stick)
   "Creates a new sword if given the right materials")
+
+(define-user-command (read scroll)
+  "Prints the text on the scroll")
+
+(define-user-command (call puppy)
+  "Get some advice from the puppy")
+
+(define-user-command (attack wizard)
+  "Decrease the stamina of the wizard")
 
 
 ;;;
 ;;; ADD YOUR COMMANDS HERE!
 ;;;
 
+;; create the sword given the right materials
 (define (create-sword diamond woodstick)
   (begin (if (and (have-a? diamonds?)
                   (have-a? stick?))
@@ -718,8 +721,8 @@
   (go(the inviting door))
   (take(the stick))
   (take(the key))
-  (turn(the key))
   (go(the door))
+  (turn(the key))
   (unlock(the locked door))
   (go(the locked door))
   (drink(the potion))
@@ -729,8 +732,7 @@
   (call (the puppy))
   (attack(the wizard))
   (attack(the wizard))
-  (attack(the wizard))
-  )
+  (attack(the wizard)))
 
 
 ;;;
