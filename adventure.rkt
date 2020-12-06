@@ -554,14 +554,14 @@
 
 (define (create-sword diamond woodstick)
   (begin (if (and (have? (the diamonds))
-                  (have? (the wooden stick)))
+                  (have? (the stick)))
              (if (= 3 (diamonds-amount (the diamonds)))
-                 (begin (destroy! diamondd)
+                 (begin (destroy! diamond)
                         (destroy! woodstick)
                         (new-prop "ultimate diamond sword" "it's a very powerful sword" (here))
-                        (printf "you've created an ultimate diamond sword, pick it up!"))
-                 (printf "you don't have enough diamond!"))
-             (printf "you don't have the necessary materials!"))))
+                        (printf "You've created an ultimate diamond sword, pick it up!"))
+                 (printf "You don't have enough diamond!"))
+             (printf "You don't have the necessary materials!"))))
                  
 
   
@@ -597,7 +597,7 @@
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
                        starting-room)
            (new-scroll "instructional scroll"
-                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the wooden stick))~%"
+                       "Ultimate Diamond Sword Recipe~%Ingredients:~%3 Diamonds~%Wooden stick~%Instructions:~%(create-sword (the diamonds) (the stick))~%"
                        room3.1)
            (new-scroll "dark scroll"
                        "Beware, Gorvenal awaits you in the next room! Failure to equip yourself with the correct items will result in a painful death!~%"
@@ -627,8 +627,33 @@
 ;;; PUT YOUR WALKTHROUGHS HERE
 ;;;
 
-
-
+(define-walkthrough win
+   (read(the scroll))
+  (go(the door))
+  (take(the pickaxe))
+  (go(the fancy door))
+  (read(the scroll))
+  (mine(the diamond-ore))
+  (mine(the diamond-ore))
+  (mine(the diamond-ore))
+  (take(the shiny diamonds))
+  (go(the door))
+  (go(the inviting door))
+  (take(the stick))
+  (take(the key))
+  (turn(the key))
+  (go(the door))
+  (unlock(the locked door))
+  (go(the locked door))
+  (drink(the potion))
+  (create-sword(the diamonds)(the stick))
+  (take(the sword))
+  (go(the sinister door))
+  (attack(the wizard))
+  (attack(the wizard))
+  (attack(the wizard))
+  (attack(the wizard))
+  )
 
 
 ;;;
