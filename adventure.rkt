@@ -192,8 +192,10 @@
     (if (string=? (door-key door) "unnecessary")
         (begin (move! me (door-destination door))
                (look))
-        (printf "The door is locked. Use the unlock function instead for doors that need a key.")))
+        (printf "The door is locked. Unlock the door first!")))
 
+  ;; unlock: door -> void
+  ;; EFFECT: If the key is in the right position, the key field of the door becomes unnecessary (in other words, the door is unlocked)
   (define (unlock door)
     (if (have? (the key))
         (begin
@@ -229,7 +231,8 @@
 (define-struct (person thing)
   ()
   #:methods
-  ;; die: resets game
+  ;; die: person -> void
+  ;; Resets game
   (define (die! p)
     (begin (printf "You have died. Starting new game...~%")
            (start-game)
@@ -260,14 +263,16 @@
 ;;;
 
 (define-struct (wizard person)
-  ;;stamina: health of a wizard, full at 100 and empty at 0
+  ;; stamina: integer
+  ;; health of a wizard, full at 100 and empty at 0
   (stamina)
   #:methods
-  ;; attack:
+  ;; attack: wizard -> string
+  ;; decreases the wizard's stamina by 33 after every attack, once stamina is empty, you win
   (define (attack wizard)
         (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 33))
                (if (< (wizard-stamina wizard) 0)
-                   (printf "You have killed the wizard!")
+                   (printf "You have killed the wizard! You won!")
                    (printf "Wizard is not dead yet, try again!")
                    )
                ))
@@ -326,9 +331,11 @@
 
 (define-struct (potion thing)
   ;; toxicity: boolean
+  ;; toxicity is true when poisonous and false when safe
   (toxicity)
   #:methods
   ;; drink: potion -> void
+  ;; drinks the potion, if it is poisonous you die, if it is safe you gain super strength
   (define (drink potion)
     (begin (destroy! potion)
            (if (potion-toxicity potion)
@@ -349,11 +356,12 @@
 ;;;
 
 (define-struct (scroll thing)
-  ;; text: contents of scroll
+  ;; text: string
+  ;; contents of scroll
   (text)
   #:methods
-  ;; read: print scroll text
-
+  ;; read: scroll -> string
+  ;; prints scroll text
   (define (read scroll)
     (printf (scroll-text scroll))))
   
@@ -368,6 +376,7 @@
 ;;; PICKAXE
 ;;; subtype of thing
 (define-struct (pickaxe thing)())
+
 (define (new-pickaxe description location)
   (local [(define words (string->words description))
           (define noun (last words))
@@ -383,16 +392,12 @@
 ;;;
 
 (define-struct (key thing)
-  ;; position: up or down orientation of key
+  ;; position: string ("up" or "down")
+  ;; up or down orientation of key
   (position)
   #:methods
-  ;; unlock: using key to unlock doors
-  (define (unlock key)
-    (if (string=? "down" (key-position key))
-        (printf "The door has been unlocked.")
-        (printf "This door is still locked.")
-        )
-    )
+  ;;turn: key -> key
+  ;;switches orientation of key between up and down 
   (define (turn key)
     (if (string=? "up" (key-position key))
         (begin (destroy! key)
@@ -435,9 +440,12 @@
 ;;;
 
 (define-struct (diamond-ore thing)
+  ;; contents: integer
+  ;; the amount of diamond each diamond-ore holds
   (contents)
   #:methods
-  
+  ;; mining: diamond-ore -> diamond
+  ;; destroys a diamond-ore after 3 times and drops the diamond
   (define (mining diamond-ore)
     (if (= 0 (diamond-ore-contents diamond-ore))
         (begin(destroy! diamond-ore)
@@ -449,7 +457,8 @@
                          (printf "you've gained another diamond, try continue mining!")))
                (set-diamond-ore-contents! diamond-ore (- (diamond-ore-contents diamond-ore) 1))
                )))
-
+  ;; mine: diamond-ore -> (boolean) diamond
+  ;; checks if pickaxe is in player's inventory, and calls mining if true
   (define (mine diamond-ore)
     (if (have? (the pickaxe))
         (mining diamond-ore)
@@ -467,6 +476,8 @@
 ;;;DIAMOND
 
 (define-struct (diamonds thing)
+  ;; amount: integer
+  ;; the number of diamonds you have in your inventory
   (amount))
 
 (define (new-diamonds description amount location)
@@ -613,7 +624,7 @@
                     room3.2)
            (new-stick "wood stick" room3.2)
            (new-wizard "dark"
-                       99
+                       100
                        room4)
            (new-pickaxe "pickaxe"
                         room2)
@@ -636,7 +647,7 @@
   (mine(the diamond-ore))
   (mine(the diamond-ore))
   (mine(the diamond-ore))
-  (take(the shiny diamonds))
+  (take(the diamonds))
   (go(the door))
   (go(the inviting door))
   (take(the stick))
