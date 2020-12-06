@@ -1,3 +1,6 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-advanced-reader.ss" "lang")((modname adventure) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 (require "adventure-define-struct.rkt")
 (require "macros.rkt")
 (require "utilities.rkt")
@@ -211,9 +214,9 @@
   #:methods
   ;; die: resets game
   (define (die! p)
-  (begin (printf "You have died. Starting new game...~%")
-         (start-game)
-         (look))))
+    (begin (printf "You have died. Starting new game...~%")
+           (start-game)
+           (look))))
 
 ;; initialize-person: person -> void
 ;; EFFECT: do whatever initializations are necessary for persons.
@@ -234,6 +237,40 @@
 ;; the player.  This gets reset by (start-game)
 (define me empty)
 
+;;;
+;;; WIZARD
+;;; subtype of person
+;;;
+
+(define-struct (wizard person)
+  ;;stamina: health of a wizard, full at 100 and empty at 0
+  (stamina
+   trials)
+  #:methods
+  ;; attack:
+  (define (attack wizard)
+    (begin
+    (local [(define wizstam
+              (- (wizard-stamina wizard) (* (wizard-trials wizard)  33))
+              )]
+    (begin (set! wizstam (- wizstam 33))
+           (if (< wizstam 0)
+               (printf "You have killed the wizard!")
+               (display-line wizstam)
+               )
+           ))
+    )
+  )
+  )
+  
+(define (new-wizard adjectives stamina trials location)
+  (local [(define wizard
+            (make-wizard (string->words adjectives)
+                         '()
+                         location
+                         stamina trials))]
+    (begin (initialize-person! wizard)
+           wizard)))
 
 
 ;;;
@@ -297,13 +334,13 @@
 
 ;;;
 ;;; SCROLL
-;;; subtype of scroll
+;;; subtype of thing
 ;;;
 
 (define-struct (scroll thing)
   ;; text: contents of scroll
   (text)
-    #:methods
+  #:methods
   ;; read: print scroll text
   (define (read scroll)
     (printf (scroll-text scroll))))
@@ -317,7 +354,52 @@
            scroll)))
 
 
+;;;
+;;; KEY
+;;; subtype of thing
+;;;
 
+(define-struct (key thing)
+  ;; position: up or down orientation of key
+  (position)
+  #:methods
+  ;; unlock: using key to unlock doors
+  (define (unlock key)
+    (if (string=? "down" (key-position key))
+        (printf "The door has been unlocked.")
+        (printf "This door is still locked.")
+        )
+    )
+  ;(define (turn key)
+   ;(if (string=? "up" (key-position key))
+    ;   
+     ;   )
+   ; )
+  )
+  
+(define (new-key description position location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define key (make-key adjectives '() location position))]
+    (begin (initialize-thing! key)
+           key)))
+
+
+;;;
+;;; STICK
+;;; subtype of thing
+;;;
+(define-struct (stick thing)
+  ())
+
+(define (new-stick description  location)
+  (local [(define words (string->words description))
+          (define noun (last words))
+          (define adjectives (drop-right words 1))
+          (define stick (make-stick adjectives '() location))]
+    (begin (initialize-thing! stick)
+           stick)))
 
 
 
@@ -413,11 +495,11 @@
            (join! room2 "fancy"
                   room3.1 "mysterious")
            (join! room2 "inviting"
-                   room3.2 "mysterious")
+                  room3.2 "mysterious")
            (join! room2 "locked"
-                   room3.3 "mysterious")
-           (join! room3.3 "sinsister"
-                   room4 "locked")
+                  room3.3 "mysterious")
+           (join! room3.3 "sinister"
+                  room4 "locked")
            ;; Add code here to add things to your rooms
            (new-scroll "urgent scroll"
                        "I have taken over the kingdom! I await you at the end, prepare to meet your doom!~%xoxo, Gorvenal the Dark Wizard"
@@ -434,6 +516,14 @@
            (new-potion "thanos potion"
                        false
                        room3.3)
+           (new-key "bronze key"
+                  "up"
+                room3.2)
+           (new-stick "wood stick" room3.2)
+           (new-wizard "dark"
+                       99
+                       0
+                       room4)
            (check-containers!)
            (void))))
 
