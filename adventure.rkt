@@ -278,7 +278,7 @@
   ;; attack: wizard -> string
   ;; decreases the wizard's stamina by 33 after every attack, once stamina is empty, you win
   (define (attack wizard)
-        (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 33))
+        (begin (set-wizard-stamina! (the wizard) (- (wizard-stamina (the wizard)) 34))
                (if (< (wizard-stamina wizard) 0)
                    (printf "You have killed the wizard! You won!")
                    (printf "Wizard is not dead yet, try again!")
@@ -463,25 +463,6 @@
     (begin (initialize-thing! sword)
            sword)))
            
-;;;
-;;; DIAMOND ORE
-;;; subtype of thing
-;;;
-
-;;;
-;;; STICK
-;;; subtype of thing
-;;;
-(define-struct (stick thing)
-  ())
-
-(define (new-stick description  location)
-  (local [(define words (string->words description))
-          (define noun (last words))
-          (define adjectives (drop-right words 1))
-          (define stick (make-stick adjectives '() location))]
-    (begin (initialize-thing! stick)
-           stick)))
            
 ;;;
 ;;; DIAMOND ORE
@@ -647,8 +628,8 @@
 ;;;
 
 (define (create-sword diamond woodstick)
-  (begin (if (and (have-a? diamonds)
-                  (have-a? stick))
+  (begin (if (and (have-a? diamonds?)
+                  (have-a? stick?))
              (if (= 3 (diamonds-amount (the diamonds)))
                  (begin (destroy! diamond)
                         (destroy! woodstick)
@@ -714,7 +695,7 @@
                             3
                             room3.1)
            (new-puppy "cute puppy"
-                       "Woof, woof! Quick, attack the wizard! This is your chance!"
+                       "Woof, woof! Quick, attack the wizard! Third time's the charm!"
                        room4)
            (check-containers!)
            (void))))
@@ -745,7 +726,7 @@
   (create-sword(the diamonds)(the stick))
   (take(the sword))
   (go(the sinister door))
-  (attack(the wizard))
+  (call (the puppy))
   (attack(the wizard))
   (attack(the wizard))
   (attack(the wizard))
